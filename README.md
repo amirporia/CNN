@@ -1,2 +1,2 @@
-# CNN
-implementation of Convolutional Neural Network from scratch with python without using any libraries
+# Neural Network implementation
+implementation of Neural Networks from scratch with python without using any libraries
