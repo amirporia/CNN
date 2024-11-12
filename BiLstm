@@ -1,0 +1,141 @@
+Here’s how to implement a basic BiLSTM (Bidirectional Long Short-Term Memory) from scratch in Python, without using deep learning libraries like TensorFlow or PyTorch. This involves creating the LSTM cell equations and managing the forward and backward passes to capture context from both directions.
+
+### BiLSTM Overview
+- A BiLSTM processes the sequence in both forward and backward directions, combining the information from both.
+- The LSTM cell has the following gates and steps: forget gate, input gate, cell state, and output gate.
+
+### Code Implementation
+Let’s walk through the code step by step.
+
+```python
+import numpy as np
+
+# Sigmoid and Tanh activation functions
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+def tanh(x):
+    return np.tanh(x)
+
+# Derivatives for backpropagation
+def sigmoid_derivative(x):
+    return sigmoid(x) * (1 - sigmoid(x))
+
+def tanh_derivative(x):
+    return 1 - np.tanh(x)**2
+
+class LSTMCell:
+    def __init__(self, input_dim, hidden_dim):
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+
+        # Initialize weights for the LSTM gates
+        self.W_f = np.random.randn(hidden_dim, hidden_dim + input_dim)
+        self.W_i = np.random.randn(hidden_dim, hidden_dim + input_dim)
+        self.W_c = np.random.randn(hidden_dim, hidden_dim + input_dim)
+        self.W_o = np.random.randn(hidden_dim, hidden_dim + input_dim)
+        
+        # Biases for the gates
+        self.b_f = np.zeros((hidden_dim, 1))
+        self.b_i = np.zeros((hidden_dim, 1))
+        self.b_c = np.zeros((hidden_dim, 1))
+        self.b_o = np.zeros((hidden_dim, 1))
+    
+    def forward(self, x, h_prev, c_prev):
+        # Concatenate hidden state and input
+        concat = np.vstack((h_prev, x))
+        
+        # Forget gate
+        f_t = sigmoid(np.dot(self.W_f, concat) + self.b_f)
+        
+        # Input gate
+        i_t = sigmoid(np.dot(self.W_i, concat) + self.b_i)
+        
+        # Cell gate
+        c_hat_t = tanh(np.dot(self.W_c, concat) + self.b_c)
+        
+        # Update cell state
+        c_t = f_t * c_prev + i_t * c_hat_t
+        
+        # Output gate
+        o_t = sigmoid(np.dot(self.W_o, concat) + self.b_o)
+        
+        # Update hidden state
+        h_t = o_t * tanh(c_t)
+        
+        return h_t, c_t
+
+class BiLSTM:
+    def __init__(self, input_dim, hidden_dim, output_dim):
+        self.hidden_dim = hidden_dim
+
+        # Forward and backward LSTM cells
+        self.lstm_forward = LSTMCell(input_dim, hidden_dim)
+        self.lstm_backward = LSTMCell(input_dim, hidden_dim)
+        
+        # Output weights and bias
+        self.W_out = np.random.randn(output_dim, 2 * hidden_dim)
+        self.b_out = np.zeros((output_dim, 1))
+    
+    def forward(self, x_seq):
+        T = len(x_seq)
+        
+        # Initialize hidden and cell states
+        h_f, c_f = np.zeros((self.hidden_dim, 1)), np.zeros((self.hidden_dim, 1))
+        h_b, c_b = np.zeros((self.hidden_dim, 1)), np.zeros((self.hidden_dim, 1))
+        
+        # Forward and backward hidden states storage
+        h_fwd = []
+        h_bwd = []
+        
+        # Forward LSTM pass
+        for t in range(T):
+            h_f, c_f = self.lstm_forward.forward(x_seq[t], h_f, c_f)
+            h_fwd.append(h_f)
+        
+        # Backward LSTM pass
+        for t in reversed(range(T)):
+            h_b, c_b = self.lstm_backward.forward(x_seq[t], h_b, c_b)
+            h_bwd.insert(0, h_b)  # Insert at beginning to reverse
+        
+        # Concatenate forward and backward hidden states for each time step
+        h_concat = [np.vstack((h_fwd[t], h_bwd[t])) for t in range(T)]
+        
+        # Output layer for each time step
+        outputs = [np.dot(self.W_out, h) + self.b_out for h in h_concat]
+        
+        return outputs
+
+# Example usage
+input_dim = 4  # Example input feature size
+hidden_dim = 5  # Hidden layer size for each LSTM
+output_dim = 3  # Output feature size
+seq_length = 6  # Length of input sequence
+
+# Random input sequence
+x_seq = [np.random.randn(input_dim, 1) for _ in range(seq_length)]
+
+# Initialize BiLSTM
+bilstm = BiLSTM(input_dim, hidden_dim, output_dim)
+
+# Forward pass through BiLSTM
+outputs = bilstm.forward(x_seq)
+print("Output sequence from BiLSTM:", outputs)
+```
+
+### Explanation of Code
+1. **Activation Functions**: `sigmoid` and `tanh` are implemented for gate activations.
+2. **LSTMCell Class**:
+   - Implements the forward pass of a single LSTM cell.
+   - Computes the forget, input, and output gates, as well as the new cell state.
+3. **BiLSTM Class**:
+   - Contains two LSTM cells (`lstm_forward` and `lstm_backward`) to handle both forward and backward passes.
+   - In `forward()`, processes the input sequence in both directions and combines the hidden states at each time step.
+4. **Output Layer**:
+   - At each time step, it produces an output based on the combined forward and backward hidden states.
+
+### Notes
+- This implementation only provides the forward pass. Adding backpropagation through time (BPTT) would require derivatives of the LSTM cell operations and is much more complex.
+- This is a minimal example; in a production environment, additional functionalities like dropout and gradient clipping are usually added. 
+
+This code gives you a working, minimal BiLSTM from scratch for educational purposes.
